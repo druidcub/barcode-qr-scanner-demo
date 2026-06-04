@@ -4,7 +4,7 @@ A browser-based barcode and QR code scanner demo built with HTML, JavaScript, an
 
 ## Demo
 
-https://yourname.github.io/barcode-qr-scanner-demo/
+https://druidcub.github.io/barcode-qr-scanner-demo/
 
 ## Features
 
