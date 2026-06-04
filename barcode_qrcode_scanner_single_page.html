@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Scanner">
+  <link rel="manifest" href="./barcode-scanner-manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./barcode-scanner-icon-192.png">
+  <title>Barcode / QR Scanner Demo</title>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #d9dee8;
+      --accent: #0f766e;
+      --accent-soft: #dff6f2;
+      --danger: #b42318;
+      --danger-soft: #fee4e2;
+      --shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .badge-stack {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .badge.mode-browser {
+      background: #ffffff;
+      color: var(--muted);
+    }
+
+    .badge.mode-installed {
+      background: var(--accent-soft);
+      color: #0b5e55;
+      border-color: #b8ebe2;
+    }
+
+    .notice {
+      display: none;
+      margin-bottom: 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      line-height: 1.45;
+    }
+
+    .notice.visible {
+      display: block;
+    }
+
+    .notice.success {
+      background: var(--accent-soft);
+      color: #0b5e55;
+    }
+
+    .notice.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .scan-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%) translateY(20px);
+      width: min(calc(100vw - 32px), 560px);
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(17, 24, 39, 0.94);
+      color: #fff;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 9999;
+    }
+
+    .scan-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .scan-toast-label {
+      display: block;
+      margin-bottom: 4px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .scan-toast-text {
+      font-size: 15px;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .panel-title {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .reader-shell {
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    #reader {
+      width: 100%;
+      min-height: 320px;
+    }
+
+    .result-empty {
+      color: var(--muted);
+      padding: 18px 0 6px;
+    }
+
+    .result-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .result-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #0b5e55;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .result-text {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fafbfd;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .actions button {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #111827;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .actions button.secondary {
+      background: #eef2f7;
+      color: #111827;
+    }
+
+    .actions button.hidden {
+      display: none;
+    }
+
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .history-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .history-head button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+
+    .history-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .history-empty {
+      padding: 20px 14px;
+      color: var(--muted);
+    }
+
+    .footnote {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        padding: 16px 10px 28px;
+      }
+
+      .hero h1 {
+        font-size: 24px;
+      }
+
+      #reader {
+        min-height: 260px;
+      }
+
+      th:nth-child(3),
+      td:nth-child(3) {
+        display: none;
+      }
+
+      .actions button {
+        flex: 1 1 calc(50% - 10px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div id="notice" class="notice"></div>
+
+    <div class="hero">
+      <div>
+        <h1>Barcode / QR Scanner Demo</h1>
+        <p>展示瀏覽器相機掃碼與圖片解碼功能</p>
+      </div>
+      <!--
+      <div class="badge-stack">
+        <div id="display-mode-badge" class="badge mode-browser">Mode: browser</div>
+        <div class="badge">Experimental Clone</div>
+      </div>
+      -->
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-body">
+          <h2 class="panel-title">Scanner</h2>
+          <div class="reader-shell">
+            <div id="reader"></div>
+          </div>
+          <div class="footnote">
+            掃到結果後會停頓 2 秒再繼續掃描。歷史列表點擊任一列可直接複製內容。
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <h2 class="panel-title">Scan Result</h2>
+          <div id="result-empty" class="result-empty">Scan to get results.</div>
+          <div id="result-panel" class="result-grid" style="display:none;">
+            <div>
+              <span class="result-pill" id="result-code-format">UNKNOWN</span>
+            </div>
+            <div>
+              <span class="label">Detected Type</span>
+              <div id="result-detected-type" class="result-text">TEXT</div>
+            </div>
+            <div>
+              <span class="label">Parsed Result</span>
+              <div id="result-parsed" class="result-text"></div>
+            </div>
+            <div>
+              <span class="label">Raw Text</span>
+              <div id="result-text" class="result-text"></div>
+            </div>
+            <div class="actions">
+              <button type="button" id="action-copy">Copy</button>
+              <button type="button" id="action-share" class="secondary">Share</button>
+              <button type="button" id="action-open" class="secondary hidden">Open URL</button>
+              <button type="button" id="action-download" class="secondary">Download</button>
+              <button type="button" id="action-close">Hide result</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 18px;">
+      <div class="panel-body">
+        <div class="history-head">
+          <div>
+            <h2 class="panel-title" style="margin-bottom:4px;">Scan History</h2>
+            <p>點擊任一列可直接複製結果。</p>
+          </div>
+          <button type="button" id="clear-history">Clear</button>
+        </div>
+        <div class="history-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 180px;">Time</th>
+                <th>Result</th>
+                <th style="width: 140px;">Format</th>
+              </tr>
+            </thead>
+            <tbody id="history-body">
+              <tr>
+                <td colspan="3" class="history-empty">No scan history</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="scan-toast" class="scan-toast" aria-live="polite" aria-atomic="true">
+    <span class="scan-toast-label">Scanned</span>
+    <div id="scan-toast-text" class="scan-toast-text"></div>
+  </div>
+
+  <script src="./html5-qrcode.min.js"></script>
+  <script>
+    (function() {
+      var scanner = null;
+      var history = [];
+      var currentResult = null;
+      var scanCooldownMs = 2000;
+      var scanCooldownUntil = 0;
+      var autoSelectInProgress = false;
+      var autoSelectCompleted = false;
+      var bestRearCameraIdPromise = null;
+      var cameraProfileCache = {};
+      var scannerUiObserver = null;
+      var audioContext = null;
+
+      var noticeEl = document.getElementById('notice');
+      var scanToastEl = document.getElementById('scan-toast');
+      var scanToastTextEl = document.getElementById('scan-toast-text');
+      var resultEmptyEl = document.getElementById('result-empty');
+      var resultPanelEl = document.getElementById('result-panel');
+      var resultCodeFormatEl = document.getElementById('result-code-format');
+      var resultDetectedTypeEl = document.getElementById('result-detected-type');
+      var resultParsedEl = document.getElementById('result-parsed');
+      var resultTextEl = document.getElementById('result-text');
+      var actionCopyEl = document.getElementById('action-copy');
+      var actionShareEl = document.getElementById('action-share');
+      var actionOpenEl = document.getElementById('action-open');
+      var actionDownloadEl = document.getElementById('action-download');
+      var actionCloseEl = document.getElementById('action-close');
+      var clearHistoryEl = document.getElementById('clear-history');
+      var historyBodyEl = document.getElementById('history-body');
+      var displayModeBadgeEl = document.getElementById('display-mode-badge');
+
+      function isMobileUi() {
+        return window.innerWidth < 950 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+      }
+
+      function getDisplayMode() {
+        if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) {
+          return 'fullscreen';
+        }
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+          return 'standalone';
+        }
+        if (window.matchMedia && window.matchMedia('(display-mode: minimal-ui)').matches) {
+          return 'minimal-ui';
+        }
+        if (window.navigator.standalone) {
+          return 'standalone-ios';
+        }
+        return 'browser';
+      }
+
+      function updateDisplayModeBadge() {
+        if (!displayModeBadgeEl) {
+          return;
+        }
+        var mode = getDisplayMode();
+        displayModeBadgeEl.textContent = 'Mode: ' + mode;
+        if (mode === 'browser') {
+          displayModeBadgeEl.className = 'badge mode-browser';
+          return;
+        }
+        displayModeBadgeEl.className = 'badge mode-installed';
+      }
+
+      function watchDisplayMode() {
+        updateDisplayModeBadge();
+        if (!window.matchMedia) {
+          return;
+        }
+        ['fullscreen', 'standalone', 'minimal-ui'].forEach(function(mode) {
+          var mediaQuery = window.matchMedia('(display-mode: ' + mode + ')');
+          var handler = function() {
+            updateDisplayModeBadge();
+          };
+          if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handler);
+          } else if (typeof mediaQuery.addListener === 'function') {
+            mediaQuery.addListener(handler);
+          }
+        });
+        window.addEventListener('focus', updateDisplayModeBadge);
+        document.addEventListener('visibilitychange', updateDisplayModeBadge);
+      }
+
+      function qrboxFunction(viewfinderWidth, viewfinderHeight) {
+        var minEdgeSizeThreshold = 250;
+        var minEdgeSize = viewfinderWidth > viewfinderHeight ? viewfinderHeight : viewfinderWidth;
+        var qrboxEdgeSize = Math.floor(minEdgeSize * 0.75);
+        if (qrboxEdgeSize < minEdgeSizeThreshold) {
+          if (minEdgeSize < minEdgeSizeThreshold) {
+            return { width: minEdgeSize, height: minEdgeSize };
+          }
+          return { width: minEdgeSizeThreshold, height: minEdgeSizeThreshold };
+        }
+        return { width: qrboxEdgeSize, height: qrboxEdgeSize };
+      }
+
+      function getScannerConfig() {
+        return {
+          fps: 10,
+          qrbox: qrboxFunction,
+          useBarCodeDetectorIfSupported: true,
+          rememberLastUsedCamera: false,
+          aspectRatio: 4 / 3,
+          showTorchButtonIfSupported: true,
+          showZoomSliderIfSupported: true,
+          defaultZoomValueIfSupported: 1.5,
+          supportedScanTypes: [
+            Html5QrcodeScanType.SCAN_TYPE_CAMERA,
+            Html5QrcodeScanType.SCAN_TYPE_FILE
+          ]
+        };
+      }
+
+      function isRearCameraLabel(label) {
+        return /back|rear|environment|後鏡頭|背面|world/i.test(label || '');
+      }
+
+      function getCameraSelectElement() {
+        return document.getElementById('html5-qrcode-select-camera');
+      }
+
+      function getCameraStartButton() {
+        return document.getElementById('html5-qrcode-button-camera-start');
+      }
+
+      function getCameraPermissionButton() {
+        return document.getElementById('html5-qrcode-button-camera-permission');
+      }
+
+      function isElementVisible(element) {
+        return !!(element && element.offsetParent !== null);
+      }
+
+      function stopStream(stream) {
+        if (!stream) return;
+        stream.getTracks().forEach(function(track) {
+          track.stop();
+        });
+      }
+
+      async function measureCameraProfile(camera) {
+        var cacheKey = camera && camera.id ? camera.id : '';
+        if (cacheKey && cameraProfileCache[cacheKey]) {
+          return cameraProfileCache[cacheKey];
+        }
+        var stream = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              deviceId: { exact: cacheKey }
+            },
+            audio: false
+          });
+          var track = stream.getVideoTracks()[0];
+          if (!track) {
+            return null;
+          }
+          var capabilities = track.getCapabilities ? track.getCapabilities() : {};
+          var settings = track.getSettings ? track.getSettings() : {};
+          var width = capabilities.width && capabilities.width.max ? capabilities.width.max : (settings.width || 0);
+          var height = capabilities.height && capabilities.height.max ? capabilities.height.max : (settings.height || 0);
+          var facingMode = settings.facingMode || '';
+          var profile = {
+            id: cacheKey,
+            label: camera && camera.label ? camera.label : '',
+            width: Number(width || 0),
+            height: Number(height || 0),
+            facingMode: String(facingMode || '').toLowerCase()
+          };
+          profile.pixelCount = profile.width * profile.height;
+          profile.isRear = profile.facingMode === 'environment' || isRearCameraLabel(profile.label);
+          cameraProfileCache[cacheKey] = profile;
+          return profile;
+        } catch (err) {
+          console.warn('measureCameraProfile failed', cacheKey, err);
+          return null;
+        } finally {
+          stopStream(stream);
+        }
+      }
+
+      async function pickBestRearCameraId() {
+        if (!bestRearCameraIdPromise) {
+          bestRearCameraIdPromise = (async function() {
+            var cameras = await Html5Qrcode.getCameras();
+            if (!cameras || !cameras.length) {
+              return '';
+            }
+
+            var profiles = [];
+            for (var i = 0; i < cameras.length; i++) {
+              var profile = await measureCameraProfile(cameras[i]);
+              if (profile) {
+                profiles.push(profile);
+              }
+            }
+
+            if (!profiles.length) {
+              return cameras[0].id;
+            }
+
+            var rearProfiles = profiles.filter(function(profile) {
+              return profile.isRear;
+            });
+            var candidates = rearProfiles.length ? rearProfiles : profiles;
+            candidates.sort(function(left, right) {
+              return right.pixelCount - left.pixelCount;
+            });
+            return candidates[0].id;
+          })().catch(function(err) {
+            bestRearCameraIdPromise = null;
+            throw err;
+          });
+        }
+        return bestRearCameraIdPromise;
+      }
+
+      function pickBestRearCameraIdFromSelect(selectEl) {
+        if (!selectEl || !selectEl.options || !selectEl.options.length) {
+          return '';
+        }
+        var rearOption = '';
+        for (var i = 0; i < selectEl.options.length; i++) {
+          var option = selectEl.options[i];
+          if (isRearCameraLabel(option.text)) {
+            rearOption = option.value;
+            break;
+          }
+        }
+        return rearOption || selectEl.options[0].value;
+      }
+
+      function stopWatchingScannerUi() {
+        if (!scannerUiObserver) {
+          return;
+        }
+        scannerUiObserver.disconnect();
+        scannerUiObserver = null;
+      }
+
+      async function autoSelectBestRearCameraAndStart() {
+        if (autoSelectCompleted || autoSelectInProgress) return;
+        var permissionButton = getCameraPermissionButton();
+        if (isElementVisible(permissionButton)) {
+          return;
+        }
+        var selectEl = getCameraSelectElement();
+        var startButton = getCameraStartButton();
+        if (!selectEl || !startButton || !selectEl.options.length || startButton.disabled || !isElementVisible(startButton)) {
+          return;
+        }
+
+        autoSelectInProgress = true;
+        try {
+          var bestRearCameraId = await pickBestRearCameraId();
+          var hasMatchingOption = false;
+          for (var i = 0; i < selectEl.options.length; i++) {
+            if (selectEl.options[i].value === bestRearCameraId) {
+              hasMatchingOption = true;
+              break;
+            }
+          }
+          if (!hasMatchingOption) {
+            bestRearCameraId = pickBestRearCameraIdFromSelect(selectEl);
+          }
+          if (bestRearCameraId && selectEl.value !== bestRearCameraId) {
+            selectEl.value = bestRearCameraId;
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          autoSelectCompleted = true;
+          window.setTimeout(function() {
+            var latestStartButton = getCameraStartButton();
+            if (!latestStartButton || latestStartButton.disabled || !isElementVisible(latestStartButton)) {
+              autoSelectCompleted = false;
+              return;
+            }
+            latestStartButton.click();
+            stopWatchingScannerUi();
+          }, 80);
+        } catch (err) {
+          bestRearCameraIdPromise = null;
+          console.warn('autoSelectBestRearCameraAndStart failed', err);
+        } finally {
+          autoSelectInProgress = false;
+        }
+      }
+
+      function watchScannerUi() {
+        stopWatchingScannerUi();
+        scannerUiObserver = new MutationObserver(function() {
+          autoSelectBestRearCameraAndStart();
+        });
+        scannerUiObserver.observe(document.getElementById('reader'), {
+          childList: true,
+          subtree: true
+        });
+        autoSelectBestRearCameraAndStart();
+      }
+
+      function showNotice(message, variant) {
+        noticeEl.textContent = message;
+        noticeEl.className = 'notice visible ' + (variant === 'error' ? 'error' : 'success');
+        window.clearTimeout(showNotice.timer);
+        showNotice.timer = window.setTimeout(function() {
+          noticeEl.className = 'notice';
+          noticeEl.textContent = '';
+        }, 4200);
+      }
+
+      function getAudioContext() {
+        if (audioContext) {
+          return audioContext;
+        }
+        var AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) {
+          return null;
+        }
+        audioContext = new AudioContextCtor();
+        return audioContext;
+      }
+
+      function playScanBeep() {
+        try {
+          var context = getAudioContext();
+          if (!context) {
+            return;
+          }
+          if (context.state === 'suspended') {
+            context.resume().catch(function() {});
+          }
+
+          var oscillator = context.createOscillator();
+          var gainNode = context.createGain();
+          var now = context.currentTime;
+
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(1046.5, now);
+          gainNode.gain.setValueAtTime(0.0001, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          oscillator.start(now);
+          oscillator.stop(now + 0.15);
+        } catch (err) {
+          console.warn('playScanBeep failed', err);
+        }
+      }
+
+      function showScanToast(message) {
+        if (!scanToastEl || !scanToastTextEl) {
+          return;
+        }
+        scanToastTextEl.textContent = message;
+        scanToastEl.classList.add('visible');
+        window.clearTimeout(showScanToast.timer);
+        showScanToast.timer = window.setTimeout(function() {
+          scanToastEl.classList.remove('visible');
+        }, 2200);
+      }
+
+      function detectType(decodedText) {
+        try {
+          var url = new URL(decodedText);
+          if (url.protocol === 'upi:') return 'UPI';
+          if (/^https?:|^mailto:|^ftp:/.test(url.protocol)) return 'URL';
+        } catch (err) {}
+
+        if (/^tel:\+?[0-9]{3,}/i.test(decodedText)) return 'PHONE NUMBER';
+        if (/^WIFI:/i.test(decodedText)) return 'WIFI';
+        return 'TEXT';
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderParsedResult(decodedText, detectedType) {
+        if (detectedType === 'URL') {
+          var safeHref = escapeHtml(decodedText);
+          return '<a href="' + safeHref + '" target="_blank" rel="noopener noreferrer">' + safeHref + '</a>';
+        }
+        if (detectedType === 'PHONE NUMBER') {
+          var phoneText = decodedText.replace(/^tel:/i, '');
+          return '<a href="' + escapeHtml(decodedText) + '">' + escapeHtml(phoneText) + '</a>';
+        }
+        if (detectedType === 'WIFI') {
+          return escapeHtml(decodedText)
+            .replace(/;/g, ';<br>')
+            .replace(/:/g, ': ');
+        }
+        return escapeHtml(decodedText);
+      }
+
+      function formatTime(date) {
+        var y = date.getFullYear();
+        var m = String(date.getMonth() + 1).padStart(2, '0');
+        var d = String(date.getDate()).padStart(2, '0');
+        var hh = String(date.getHours()).padStart(2, '0');
+        var mm = String(date.getMinutes()).padStart(2, '0');
+        var ss = String(date.getSeconds()).padStart(2, '0');
+        return y + '-' + m + '-' + d + ' ' + hh + ':' + mm + ':' + ss;
+      }
+
+      function renderHistory() {
+        if (!history.length) {
+          historyBodyEl.innerHTML = '<tr><td colspan="3" class="history-empty">No scan history</td></tr>';
+          return;
+        }
+
+        historyBodyEl.innerHTML = history.map(function(item, index) {
+          return ''
+            + '<tr data-index="' + index + '">'
+            + '<td>' + escapeHtml(item.time) + '</td>'
+            + '<td style="word-break: break-all;">' + escapeHtml(item.text) + '</td>'
+            + '<td>' + escapeHtml(item.formatName) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      function setResultPanelVisible(visible) {
+        resultEmptyEl.style.display = visible ? 'none' : 'block';
+        resultPanelEl.style.display = visible ? 'grid' : 'none';
+      }
+
+      function renderResult(result) {
+        currentResult = result;
+        resultCodeFormatEl.textContent = result.formatName;
+        resultDetectedTypeEl.textContent = result.detectedType;
+        resultTextEl.textContent = result.text;
+        resultParsedEl.innerHTML = renderParsedResult(result.text, result.detectedType);
+
+        var canOpen = result.detectedType === 'URL';
+        actionOpenEl.className = canOpen ? 'secondary' : 'secondary hidden';
+        setResultPanelVisible(true);
+      }
+
+      function buildResult(decodedText, decodedResult, scanSource) {
+        var formatName = 'UNKNOWN';
+        if (decodedResult && decodedResult.result && decodedResult.result.format) {
+          formatName = decodedResult.result.format.formatName || formatName;
+        } else if (decodedResult && decodedResult.result && decodedResult.result.formatName) {
+          formatName = decodedResult.result.formatName || formatName;
+        }
+
+        return {
+          text: decodedText,
+          formatName: formatName,
+          detectedType: detectType(decodedText),
+          source: scanSource,
+          time: formatTime(new Date())
+        };
+      }
+
+      function onScanSuccess(decodedText, decodedResult) {
+        var now = Date.now();
+        if (now < scanCooldownUntil) {
+          return;
+        }
+        scanCooldownUntil = now + scanCooldownMs;
+        playScanBeep();
+        showScanToast(decodedText);
+        var source = scanner && scanner.getState && scanner.getState() === Html5QrcodeScannerState.NOT_STARTED
+          ? 'file'
+          : 'camera';
+        var result = buildResult(decodedText, decodedResult, source);
+        history.unshift(result);
+        renderHistory();
+        renderResult(result);
+      }
+
+      function copyText(text) {
+        return navigator.clipboard.writeText(text).then(function() {
+          showNotice('已複製到剪貼簿', 'success');
+        }).catch(function(err) {
+          showNotice('複製失敗：' + (err && err.message ? err.message : err), 'error');
+        });
+      }
+
+      function downloadTextFile(text) {
+        var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = 'scan-result.txt';
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function initActions() {
+        actionCopyEl.addEventListener('click', function() {
+          if (!currentResult) return;
+          copyText(currentResult.text);
+        });
+
+        actionShareEl.addEventListener('click', function() {
+          if (!currentResult) return;
+          if (!navigator.share) {
+            showNotice('目前瀏覽器不支援 Share API', 'error');
+            return;
+          }
+          navigator.share({
+            title: 'Scan result',
+            text: currentResult.text,
+            url: currentResult.detectedType === 'URL' ? currentResult.text : undefined
+          }).catch(function(err) {
+            if (err && err.name !== 'AbortError') {
+              showNotice('分享失敗：' + err.message, 'error');
+            }
+          });
+        });
+
+        actionOpenEl.addEventListener('click', function() {
+          if (!currentResult || currentResult.detectedType !== 'URL') return;
+          window.open(currentResult.text, '_blank', 'noopener,noreferrer');
+        });
+
+        actionDownloadEl.addEventListener('click', function() {
+          if (!currentResult) return;
+          downloadTextFile(currentResult.text);
+          showNotice('已下載掃描結果', 'success');
+        });
+
+        actionCloseEl.addEventListener('click', function() {
+          setResultPanelVisible(false);
+        });
+
+        clearHistoryEl.addEventListener('click', function() {
+          history = [];
+          renderHistory();
+          showNotice('已清空歷史紀錄', 'success');
+        });
+
+        historyBodyEl.addEventListener('click', function(event) {
+          var row = event.target.closest('tr[data-index]');
+          if (!row) return;
+          var index = Number(row.getAttribute('data-index'));
+          if (Number.isNaN(index) || !history[index]) return;
+          copyText(history[index].text);
+        });
+      }
+
+      function initScanner() {
+        scanner = new Html5QrcodeScanner('reader', getScannerConfig(), false);
+        scanner.render(onScanSuccess);
+        watchScannerUi();
+      }
+
+      function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) {
+          return;
+        }
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('./barcode-scanner-sw.js', { scope: './' }).catch(function(err) {
+            console.warn('serviceWorker registration failed', err);
+          });
+        });
+      }
+
+      initActions();
+      watchDisplayMode();
+      registerServiceWorker();
+      initScanner();
+      renderHistory();
+    })();
+  </script>
+</body>
+</html>
